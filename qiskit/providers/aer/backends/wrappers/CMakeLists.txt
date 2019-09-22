@@ -10,6 +10,8 @@ find_package(PythonLibs REQUIRED)
 # shared library.
 string(REPLACE " -static " "" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
 
+OPTION(WITH_CTF "Build with CTF simulator" OFF)
+
 # Set some general flags
 if(APPLE)
     message(STATUS "On Mac, we force linking with undefined symbols for Python library, they will be
@@ -48,6 +50,23 @@ target_include_directories(qasm_controller_wrapper
 target_link_libraries(qasm_controller_wrapper
     ${AER_LIBRARIES}
     ${PYTHON_LIBRARIES})
+
+if(WITH_CTF)
+    ADD_DEFINITIONS(-DWITH_CTF)
+    find_package(MPI REQUIRED)
+    find_package(BLAS REQUIRED)
+    find_package(LAPACK REQUIRED)
+    target_compile_options(qasm_controller_wrapper PRIVATE ${MPI_CXX_COMPILE_FLAGS})
+	target_include_directories(qasm_controller_wrapper
+	    PRIVATE ${MPI_CXX_INCLUDE_PATH}
+	    PRIVATE ${CTF_INCLUDE_DIR})
+	target_link_libraries(qasm_controller_wrapper
+	    ${MPI_CXX_LIBRARIES} ${MPI_CXX_LINK_FLAGS}
+	    ${BLAS_LIBRARIES} ${BLAS_LINKER_FLAGS}
+	    ${LAPACK_LIBRARIES} ${LAPACK_LINKER_FLAGS}
+	    ctf)
+	target_link_directories(qasm_controller_wrapper PRIVATE ${CTF_LINK_DIR})
+endif()
 
 python_extension_module(qasm_controller_wrapper
     FORWARD_DECL_MODULES_VAR fdecl_module_list)

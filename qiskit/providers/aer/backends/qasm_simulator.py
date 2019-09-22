@@ -44,6 +44,8 @@ class QasmSimulator(AerBackend):
             decomposes circuits into stabilizer state terms, the number of
             which grows with the number of non-Clifford gates.
             * "matrix_product_state": Uses a Matrix Product State (MPS) simulator.
+            * "cyclops_statevector": Uses a dense statevector simulation
+            parallelized by Cyclops Tensor Framework (CTF).
             * "automatic": Automatically run on stabilizer simulator if
             the circuit and noise model supports it. If there is enough
             available memory, uses the statevector method. Otherwise, uses

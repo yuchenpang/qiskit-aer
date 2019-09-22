@@ -25,6 +25,7 @@
 #include "simulators/matrix_product_state/matrix_product_state.hpp"
 #include "simulators/densitymatrix/densitymatrix_state.hpp"
 #include "simulators/superoperator/superoperator_state.hpp"
+#include "simulators/cyclops/cyclops_state.hpp"
 
 
 namespace AER {
@@ -137,7 +138,8 @@ protected:
     density_matrix,
     stabilizer,
     extended_stabilizer,
-    matrix_product_state
+    matrix_product_state,
+    cyclops_statevector
   };
 
   // Simulation precision
@@ -314,6 +316,11 @@ void QasmController::set_config(const json_t &config) {
     {
       simulation_method_ = Method::matrix_product_state;
     }
+    #ifdef WITH_CTF
+    else if (method == "cyclops_statevector") {
+      simulation_method_ = Method::cyclops_statevector;
+    }
+    #endif
     else if (method != "automatic") {
       throw std::runtime_error(std::string("QasmController: Invalid simulation method (") +
                                method + std::string(")."));
@@ -451,7 +458,16 @@ ExperimentData QasmController::run_circuit(const Circuit &circ,
                                                            rng_seed,
                                                            MatrixProductState::MPS(),
                                                            Method::matrix_product_state);
-
+    #ifdef WITH_CTF
+    case Method::cyclops_statevector:
+      return run_circuit_helper<Cyclops::State>(circ,
+                                                noise,
+                                                config,
+                                                shots,
+                                                rng_seed,
+                                                Cyclops::StateVector(),
+                                                Method::cyclops_statevector);
+    #endif
     default:
       throw std::runtime_error("QasmController:Invalid simulation method");
   }
@@ -500,6 +516,13 @@ QasmController::simulation_method(const Circuit &circ,
         validate_state(MatrixProductState::State(), circ, noise_model, true);
       return Method::matrix_product_state;
     }
+    #ifdef WITH_CTF
+    case Method::cyclops_statevector: {
+      if (validate)
+        validate_state(Cyclops::State(), circ, noise_model, true);
+      return Method::cyclops_statevector;
+    }
+    #endif
     case Method::automatic: {
       // If circuit and noise model are Clifford run on Stabilizer simulator
       if (validate_state(Stabilizer::State(), circ, noise_model, false)) {
@@ -593,6 +616,12 @@ size_t QasmController::required_memory_mb(const Circuit& circ,
       MatrixProductState::State state;
       return state.required_memory_mb(circ.num_qubits, circ.ops);
     }
+    #ifdef WITH_CTF
+    case Method::cyclops_statevector: {
+      Cyclops::State state;
+      return state.required_memory_mb(circ.num_qubits, circ.ops);
+    }
+    #endif
     default:
       // We shouldn't get here, so throw an exception if we do
       throw std::runtime_error("QasmController: Invalid simulation method");
@@ -625,6 +654,13 @@ void QasmController::set_parallelization_circuit(const Circuit& circ,
         return;
       }
     }
+    #ifdef WITH_CTF
+    case Method::cyclops_statevector: {
+      parallel_shots_ = 1;
+      parallel_state_update_ = 1;
+      return;
+    }
+    #endif
     default: {
       Base::Controller::set_parallelization_circuit(circ, noise_model);
     }
